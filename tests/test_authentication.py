@@ -154,8 +154,20 @@ class SongAuthAdmin(ModelView, model=SongAuth):
     }
 
 
+class RestrictedModel(Base):
+    __tablename__ = "restricted_model_auth"
+
+    id = Column(Integer, primary_key=True)
+
+
+class RestrictedModelAdmin(ModelView, model=RestrictedModel):
+    def is_accessible(self, request: Request) -> bool:
+        return False
+
+
 admin.add_view(ArtistAdmin)
 admin.add_view(SongAuthAdmin)
+admin.add_view(RestrictedModelAdmin)
 
 
 @pytest.fixture(autouse=False)
@@ -197,3 +209,16 @@ def test_ajax_lookup_after_logout_redirects_to_login(
 
     response = client.get("/admin/song-auth/ajax/lookup?name=artist&term=test")
     assert response.url == "http://testserver/admin/login"
+
+
+def test_ajax_lookup_is_accessible_false_returns_403(
+    client: TestClient,
+    prepare_ajax_tables: None,
+) -> None:
+    client.post(
+        "/admin/login",
+        data={"username": "a", "password": "b"},
+    )
+
+    response = client.get("/admin/restricted-model/ajax/lookup?name=x&term=y")
+    assert response.status_code == 403
